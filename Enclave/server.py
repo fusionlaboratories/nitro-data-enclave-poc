@@ -1,8 +1,10 @@
+import base64
+import Crypto.Hash.MD5 as MD5
 import socket
 import ssl
 import requests
 import json
-import boto3
+from NsmUtil import NSMUtil
 
 def make_query(payload):
     
@@ -19,6 +21,9 @@ def make_query(payload):
 
 def main():
     print("Starting server...")
+
+    # Initialise NSMUtil
+    nsm_util = NSMUtil()
     
     # Create a vsock socket object
     s = socket.socket(socket.AF_VSOCK, socket.SOCK_STREAM)
@@ -42,11 +47,22 @@ def main():
         # Get AWS credential sent from parent instance
         payload = json.loads((c.recv(4096)).decode())
 
+        attestation_doc = nsm_util.get_attestation_doc()
+        attestation_doc_b64 = base64.b64encode(attestation_doc).decode()
+        c.send(str.encode({"public_key": nsm_util._public_key}))
+        c.send(str.encode({"attestation_doc_b64": attestation_doc_b64}))
+
         # Get data from AWS API call
         content = make_query(payload)
-
+        content_hash=MD5.new(content).digest()
+        signature = nsm_util._rsa_key.sign(content_hash)
+        result={
+                "md5_hash":content_hash,
+                "content":json.dumps(content),
+                "signature":signature
+                }
         # Send the response back to parent instance
-        c.send(str.encode(json.dumps(content)))
+        c.send(str.encode(result))
 
         # Close the connection
         c.close() 

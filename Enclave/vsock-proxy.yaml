@@ -1,0 +1,2 @@
+allowlist:
+  - {address: binance.com, port: 443}
