@@ -19,7 +19,7 @@ def main():
     s.connect((cid, port))
 
     # send query to server running in enclave
-    package = ["binance.com",443]
+    package = {"hostname":"binance.com","port":443}
     s.send(str.encode(json.dumps(package)))
     
     # receive data from the server
