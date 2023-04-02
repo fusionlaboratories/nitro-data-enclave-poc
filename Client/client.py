@@ -13,14 +13,6 @@ received_data= {
     "public_key": "b'0\\x82\\x01\"0\\r\\x06\\t*\\x86H\\x86\\xf7\\r\\x01\\x01\\x01\\x05\\x00\\x03\\x82\\x01\\x0f\\x000\\x82\\x01\\n\\x02\\x82\\x01\\x01\\x00\\x9b\\xc4.n\\xe7\\x8ak\\x94\\x94/\\xb7\\x0c\\x8f\\xa1\\x02\\xd8\\xbd\\x9c\\xb7\\xea\\x022J\\xa5(\\xa65\\xec\\x11\\xd7\\x10e\\'\\x07{4U\\xc9cl2\\xa2\\x81k\\x07\\xfb$\\xa6\\x03\\xf8\\xdc.\\xf6-C\\xc5\\x9e\\x85\\xc4\\xae(\\xff\\x9f/\\x0c4!\\x89I\\xbb4\\xed\\x08\\xbba\\xfd\\xf3=\\xb7\\r\\xfa\\xbb\\xb3C\\xcb\\\\\\xd6h&\\x8d\\x99D?\\x03\\xacw\\xf0\\xbc*b\\x92x\\xef;\\xd5\\x97>\\xb3k\\xdd\\xc8Q\\xa8;[\\xb2/\\x958\\xcb\\x8a\\xba\\xf7\\xb9\\xbd\\x062\\x81@\\xda$+6c\\xc4z\\x17JchCz@\\xac\\xfa\\xece[\\x12\\x1d\\xab\\xac\\xfb\\x01\\xbeM}\\xc7bPj\\xe7Bl\\x84t\\x9e\\xce\\rF\\x92\\xfa(\\x95W\\xe3\\xbc5\\xd5;z\\x18,\\tC\\x06\\x07\\x03\\xc1\\\\\\xc0\\x80\\x1a\\xe0\\x18\\x85\\xc0V>\\xa5\\xa0\\r^\\xc7\\x88A\\xb6\\xbf\\xf2\\xc8\\x90c\\x9a\\x91Y\\xeej1P\\xe3\\xb7\\xa8\\xc3q\\xcf\\xae\\x06\\xc4*\\xea\\xc9\\xd4\\xf6\\x98Q\\x02]\\xc1\\r\\xf2\\xe5p\\xf8\\x12\\xa1y\\xf7\\x1c\\x1e\\x19\\xc3\\xa8X1.\\x13\\x02\\x03\\x01\\x00\\x01'", 
     "signature_b64": "G1PJMr5m3fdJKLLI0fs3lhV9ekkowWx5HgcQnqs6u35+ZlfQtb2Zk9+wN2qEDTJWwKCwy503EpDCNEEb2+Lb6Hx0R/bGIH8T5W8rI4y8nGGVdcbtveNn9Y9uhYA7mz1YJwYX1o4UAolWD77fJ8c3vfLx/T99C0FTjOw2RUrrobYYiRjKDdcKVeFtJMukppJwSax9jM/7HuV6tVubex6iXphAGjmOD3OllKRWiggAQhOvGVm447ojw6b+1RxHuDKtAHE3poOxlHgdI4vLG/GAXt9wb7k5hPJpNsAGJnBLFoBWy6NYJc3nqg/C9IsyZ+Q0uwQEDnKr4P12I+g8jvrMSw=="
     }
-
-# Decode CBOR attestation document
-data = cbor2.loads(base64.b64decode(received_data['attestation_doc_b64']))# Load and decode document payload
-doc = data[2]
-doc_obj = cbor2.loads(doc)
-
-print(pprint.pprint(doc_obj))
-
 def validate_signature(public_key, signature, msg):
     verifier = pkcs1_15.new(RSA.importKey(public_key))
 
@@ -36,6 +28,30 @@ def validate_signature(public_key, signature, msg):
 content_serialized = json.loads(received_data["content"])
 
 print(content_serialized)
+
+# Decode CBOR attestation document
+data = cbor2.loads(base64.b64decode(received_data['attestation_doc_b64']))# Load and decode document payload
+doc = data[2]
+doc_obj = cbor2.loads(doc)
+
+print(pprint.pprint(doc_obj))
+
+# Get signing certificate from attestation document
+cert = crypto.load_certificate(
+    crypto.FILETYPE_ASN1,
+    doc_obj['certificate']
+)# Get the key parameters from the cert public key
+cert_public_numbers = cert.get_pubkey()\
+    .to_cryptography_key().public_numbers()
+x = long_to_bytes(cert_public_numbers.x)
+y = long_to_bytes(cert_public_numbers.y)# Create the EC2 key from public key parameters
+key = EC2(
+    alg = CoseAlgorithms.ES384,
+    x   = x,
+    y   = y,
+    crv = CoseEllipticCurves.P_384
+)
+
 
 '''
 # Create an X509Store object for the CA bundles
