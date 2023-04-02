@@ -1,30 +1,32 @@
 import base64
-import Crypto.Hash.MD5 as MD5
+from Crypto.Signature import pkcs1_15
+from Crypto.Hash import SHA256
 import socket
 import ssl
-import requests
 import json
 from NsmUtil import NSMUtil
 
 def make_query(payload):
-    
+
     hostname = payload['hostname']
     port = payload['port']
-
-    context = ssl.create_default_context()
-    with socket.create_connection((hostname, port)) as sock:
-        with context.wrap_socket(sock, server_hostname=hostname) as ssock:
-            return {
-                    'version': ssock.version(),
-                    'peerCert': ssock.getpeercert()
-                }
+    try:
+        context = ssl.create_default_context()
+        with socket.create_connection((hostname, port)) as sock:
+            with context.wrap_socket(sock, server_hostname=hostname) as ssock:
+                return {
+                        'version': ssock.version(),
+                        'peerCert': ssock.getpeercert()
+                    }
+    except: 
+        return {}
 
 def main():
     print("Starting server...")
 
     # Initialise NSMUtil
     nsm_util = NSMUtil()
-    
+
     # Create a vsock socket object
     s = socket.socket(socket.AF_VSOCK, socket.SOCK_STREAM)
 
@@ -49,23 +51,28 @@ def main():
 
         attestation_doc = nsm_util.get_attestation_doc()
         attestation_doc_b64 = base64.b64encode(attestation_doc).decode()
-        c.send(str.encode({"public_key": nsm_util._public_key}))
-        c.send(str.encode({"attestation_doc_b64": attestation_doc_b64}))
+
+        #c.sendall(str.encode(json.dumps({"public_key": str(nsm_util._public_key)})))
+        #c.sendall(str.encode(json.dumps({"attestation_doc_b64": attestation_doc_b64})))
 
         # Get data from AWS API call
         content = make_query(payload)
-        content_hash=MD5.new(content).digest()
-        signature = nsm_util._rsa_key.sign(content_hash)
+        h = SHA256.new()
+        h.update(json.dumps(content, sort_keys=True).encode())
+        signature = pkcs1_15.new(nsm_util._rsa_key).sign(h)
         result={
-                "md5_hash":content_hash,
+                #"sha256_hash":content_hash,
                 "content":json.dumps(content),
-                "signature":signature
+                "signature_b64":base64.b64encode(signature).decode(),
+                "public_key": str(nsm_util._public_key),
+                "attestation_doc_b64": attestation_doc_b64
                 }
         # Send the response back to parent instance
-        c.send(str.encode(result))
+        c.sendall(str.encode(json.dumps(result, sort_keys=True)))
 
         # Close the connection
-        c.close() 
+        c.close()
 
 if __name__ == '__main__':
     main()
+                                     
