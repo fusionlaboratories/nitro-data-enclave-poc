@@ -9,3 +9,12 @@ docker build ./Enclave/Dockerfile -t kataak/dataenclave:latest & docker push  ka
 
 vsock-proxy --config vsock-proxy.yaml 8000 binance.com 443 &
 ```
+
+
+Req: 
+````
+curl --header "Content-Type: application/json" \
+                                     --request POST \
+                                     --data '{"hostname":"binance.com","port":443}' \
+                                     http://10.56.32.98:5000/host
+                                     
