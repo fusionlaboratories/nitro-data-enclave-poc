@@ -10,6 +10,7 @@ docker build ./Enclave/Dockerfile -t kataak/dataenclave:latest & docker push  ka
 vsock-proxy --config vsock-proxy.yaml 8000 binance.com 443 &
 ```
 
+binance.com is hardcoded per time for local loopback
 
 Req: 
 ````
